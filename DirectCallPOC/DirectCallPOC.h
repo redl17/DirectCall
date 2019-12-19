@@ -1,8 +1,11 @@
 #pragma once
 #include <Windows.h>
 
-#define STATUS_SUCCESS =0;
-#define OBJ_CASE_INSENSITIVE 0x00000040L;
+
+#define STATUS_SUCCESS 0
+#define OBJ_CASE_INSENSITIVE 0x00000040
+#define FILE_OVERWRITE_IF 0x00000005
+#define FILE_SYNCHRONOUS_IO_NONALERT 0x00000020
 
 #define InitializeObjectAttributes( i, o, a, r, s ) {    \
       (i)->Length = sizeof( OBJECT_ATTRIBUTES );         \
@@ -34,7 +37,7 @@ typedef struct _IO_STATUS_BLOCK
 {
 	union
 	{
-		LONG Status;
+		NTSTATUS Status;
 		PVOID Pointer;
 	};
 	ULONG Information;
@@ -64,4 +67,8 @@ EXTERN_C NTSTATUS NtCreateFile10(
 	PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, 
 	PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, 
 	ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
+
+NTSTATUS(*ZwClose)(
+	IN HANDLE KeyHandle
+	);
 
