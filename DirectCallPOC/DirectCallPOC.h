@@ -49,6 +49,20 @@ typedef void (WINAPI* _RtlInitUnicodeString)(
 	);
 
 
+typedef struct _WIN_VER_INFO {
+	WCHAR chOSMajorMinor[8];
+	DWORD dwBuildNumber;
+	UNICODE_STRING ProcName;
+	HANDLE hTargetPID;
+	LPCSTR lpApiCall;
+	INT SystemCall;
+} WIN_VER_INFO, *PWIN_VER_INFO;
+
+typedef NTSTATUS(NTAPI *_RtlGetVersion)(
+	LPOSVERSIONINFOEXW lpVersionInformation
+	);
+
+
 NTSTATUS(*NtCreateFile)(
 	PHANDLE FileHandle,
 	ACCESS_MASK DesiredAccess,
