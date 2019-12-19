@@ -16,6 +16,8 @@
       (i)->SecurityQualityOfService = NULL;              \
    }
 
+typedef LONG KPRIORITY;
+
 typedef struct _UNICODE_STRING {
 	USHORT Length;
 	USHORT MaximumLength;
@@ -49,6 +51,12 @@ typedef void (WINAPI* _RtlInitUnicodeString)(
 	);
 
 
+typedef NTSYSAPI BOOLEAN(NTAPI *_RtlEqualUnicodeString)(
+	PUNICODE_STRING String1,
+	PCUNICODE_STRING String2,
+	BOOLEAN CaseInSensitive
+	);
+
 typedef struct _WIN_VER_INFO {
 	WCHAR chOSMajorMinor[8];
 	DWORD dwBuildNumber;
@@ -62,6 +70,48 @@ typedef NTSTATUS(NTAPI *_RtlGetVersion)(
 	LPOSVERSIONINFOEXW lpVersionInformation
 	);
 
+typedef struct _SYSTEM_PROCESSES {
+	ULONG NextEntryDelta;
+	ULONG ThreadCount;
+	ULONG Reserved1[6];
+	LARGE_INTEGER CreateTime;
+	LARGE_INTEGER UserTime;
+	LARGE_INTEGER KernelTime;
+	UNICODE_STRING ProcessName;
+	KPRIORITY BasePriority;
+	HANDLE ProcessId;
+	HANDLE InheritedFromProcessId;
+} SYSTEM_PROCESSES, *PSYSTEM_PROCESSES;
+
+
+typedef enum _SYSTEM_INFORMATION_CLASS {
+	SystemBasicInformation,
+	SystemProcessorInformation,
+	SystemPerformanceInformation,
+	SystemTimeOfDayInformation,
+	SystemPathInformation,
+	SystemProcessInformation,
+	SystemCallCountInformation,
+	SystemDeviceInformation,
+	SystemProcessorPerformanceInformation,
+	SystemFlagsInformation,
+	SystemCallTimeInformation,
+	SystemModuleInformation
+} SYSTEM_INFORMATION_CLASS, *PSYSTEM_INFORMATION_CLASS;
+
+typedef struct _CLIENT_ID {
+	HANDLE UniqueProcess;
+	HANDLE UniqueThread;
+} CLIENT_ID, *PCLIENT_ID;
+
+EXTERN_C NTSTATUS NtCreateFile10(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, 
+	PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, 
+	ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
+EXTERN_C NTSTATUS WINAPI ZwQuerySystemInformation10(SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation, 
+	ULONG SystemInformationLength, PULONG ReturnLength);
+EXTERN_C NTSTATUS NtAllocateVirtualMemory10(HANDLE ProcessHandle, PVOID *BaseAddress, ULONG_PTR ZeroBits, PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect);
+EXTERN_C NTSTATUS NtFreeVirtualMemory10(HANDLE  ProcessHandle, PVOID   *BaseAddress, PSIZE_T RegionSize, ULONG   FreeType);
+EXTERN_C NTSTATUS ZwOpenProcess10(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
 
 NTSTATUS(*NtCreateFile)(
 	PHANDLE FileHandle,
@@ -77,10 +127,36 @@ NTSTATUS(*NtCreateFile)(
 	ULONG EaLength
 	);
 
-EXTERN_C NTSTATUS NtCreateFile10(
-	PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, 
-	PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, 
-	ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
+NTSTATUS(WINAPI *ZwQuerySystemInformation)(
+	SYSTEM_INFORMATION_CLASS SystemInformationClass,
+	PVOID SystemInformation,
+	ULONG SystemInformationLength,
+	PULONG ReturnLength
+	);
+
+
+NTSTATUS(*NtAllocateVirtualMemory)(
+	HANDLE ProcessHandle,
+	PVOID *BaseAddress,
+	ULONG_PTR ZeroBits,
+	PSIZE_T RegionSize,
+	ULONG AllocationType,
+	ULONG Protect
+	);
+
+NTSTATUS(*NtFreeVirtualMemory)(
+	HANDLE  ProcessHandle,
+	PVOID   *BaseAddress,
+	PSIZE_T RegionSize,
+	ULONG   FreeType
+	);
+
+NTSTATUS(*ZwOpenProcess)(
+	PHANDLE ProcessHandle,
+	ACCESS_MASK DesiredAccess,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PCLIENT_ID ClientId
+	);
 
 NTSTATUS(*ZwClose)(
 	IN HANDLE KeyHandle
