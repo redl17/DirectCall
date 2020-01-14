@@ -104,6 +104,7 @@ typedef struct _CLIENT_ID {
 	HANDLE UniqueThread;
 } CLIENT_ID, *PCLIENT_ID;
 
+//ZwCreateSection parameter
 EXTERN_C NTSTATUS NtCreateFile10(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, 
 	PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, 
 	ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
@@ -112,6 +113,7 @@ EXTERN_C NTSTATUS WINAPI ZwQuerySystemInformation10(SYSTEM_INFORMATION_CLASS Sys
 EXTERN_C NTSTATUS NtAllocateVirtualMemory10(HANDLE ProcessHandle, PVOID *BaseAddress, ULONG_PTR ZeroBits, PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect);
 EXTERN_C NTSTATUS NtFreeVirtualMemory10(HANDLE  ProcessHandle, PVOID   *BaseAddress, PSIZE_T RegionSize, ULONG   FreeType);
 EXTERN_C NTSTATUS ZwOpenProcess10(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
+EXTERN_C NTSTATUS ZwCreateSection10(_Out_ PHANDLE SectionHandle, _In_ ACCESS_MASK DesiredAccess, _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes, _In_opt_ PLARGE_INTEGER MaximumSize, 	_In_ ULONG SectionPageProtection, _In_ ULONG AllocationAttributes, _In_opt_ HANDLE FileHandle);
 
 NTSTATUS(*NtCreateFile)(
 	PHANDLE FileHandle,
@@ -156,6 +158,13 @@ NTSTATUS(*ZwOpenProcess)(
 	ACCESS_MASK DesiredAccess,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	PCLIENT_ID ClientId
+	);
+
+NTSTATUS(NTAPI *ZwCreateSection)(
+	_Out_ PHANDLE SectionHandle, _In_ ACCESS_MASK DesiredAccess,
+	_In_opt_ POBJECT_ATTRIBUTES ObjectAttributes,
+	_In_opt_ PLARGE_INTEGER MaximumSize, _In_ ULONG SectionPageProtection,
+	_In_ ULONG AllocationAttributes, _In_opt_ HANDLE FileHandle
 	);
 
 NTSTATUS(*ZwClose)(

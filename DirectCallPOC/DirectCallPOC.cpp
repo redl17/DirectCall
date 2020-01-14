@@ -208,11 +208,11 @@ int main()
 	SetDebugPrivilege();
 
 
-	PWIN_VER_INFO pWinVerInfo = (PWIN_VER_INFO)calloc(1, sizeof(WIN_VER_INFO));
+ 	PWIN_VER_INFO pWinVerInfo = (PWIN_VER_INFO)calloc(1, sizeof(WIN_VER_INFO));
 
 	// First set OS Version/Architecture specific values
 	OSVERSIONINFOEXW osInfo;
-	LPWSTR lpOSVersion;
+	//LPWSTR lpOSVersion;
 	osInfo.dwOSVersionInfoSize = sizeof(osInfo);
 
 	_RtlGetVersion RtlGetVersion = (_RtlGetVersion)
@@ -229,12 +229,12 @@ int main()
 
 	// Now create os/build specific syscall function pointers.
 	if (_wcsicmp(pWinVerInfo->chOSMajorMinor, L"10.0") == 0) {
-		lpOSVersion = (LPWSTR)"10 or Server 2016";
-		wprintf(L"	[+] Operating System is Windows %ls, build number %d\n", lpOSVersion, pWinVerInfo->dwBuildNumber);
+		//lpOSVersion = (LPWSTR)"10 or Server 2016";
+		wprintf(L"	[+] Operating System is Windows 10 or Server 2016, build number %d\n", pWinVerInfo->dwBuildNumber);
 	}
 	else if (_wcsicmp(pWinVerInfo->chOSMajorMinor, L"6.3") == 0) {
-		lpOSVersion = (LPWSTR)"8.1 or Server 2012 R2";
-		wprintf(L"	[+] Operating System is Windows %ls, build number %d\n", lpOSVersion, pWinVerInfo->dwBuildNumber);
+		//lpOSVersion = (LPWSTR)"8.1 or Server 2012 R2";
+		wprintf(L"	[+] Operating System is Windows 8.1 or Server 2012 R2, build number %d\n", pWinVerInfo->dwBuildNumber);
 	}
 	else {
 		wprintf(L"	[!] OS Version not supported.\n\n");
@@ -276,7 +276,7 @@ int main()
 
 	ZwOpenProcess = ZwOpenProcess10;
 	NTSTATUS status = ZwOpenProcess(&hProcess, rights, &ObjectAttributes, &uPid);
-	printf("ZwOpenProcess Handle %d\n", (int)hProcess);
+	printf("ZwOpenProcess Handle %p\n", hProcess);
 
 	if (hProcess == NULL) {
 		ErrorExit(LFunctionZWOpen);
