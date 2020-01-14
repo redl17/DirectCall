@@ -282,6 +282,19 @@ int main()
 		ErrorExit(LFunctionZWOpen);
 	}
 
+	const wchar_t* FunctionZwCreateSection = L"ZwOpenCreateSection10";
+	LPTSTR LFunctionZwCreateSection = (LPTSTR)FunctionZwCreateSection;
+
+	HANDLE SectionHandle;
+	ZwCreateSection = ZwCreateSection10;
+	NTSTATUS state = ZwCreateSection(&SectionHandle, SECTION_ALL_ACCESS, NULL, NULL, PAGE_EXECUTE_READ, SEC_IMAGE, hProcess);
+	printf("ZwCreateSection status %p\n", SectionHandle);
+
+	if (status)
+	{
+		ErrorExit(LFunctionZwCreateSection);
+	}
+
 
 	/*
 	*******************Initial POC test stop here**************************

@@ -104,7 +104,7 @@ typedef struct _CLIENT_ID {
 	HANDLE UniqueThread;
 } CLIENT_ID, *PCLIENT_ID;
 
-//ZwCreateSection parameter
+
 EXTERN_C NTSTATUS NtCreateFile10(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, 
 	PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, 
 	ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
@@ -114,6 +114,9 @@ EXTERN_C NTSTATUS NtAllocateVirtualMemory10(HANDLE ProcessHandle, PVOID *BaseAdd
 EXTERN_C NTSTATUS NtFreeVirtualMemory10(HANDLE  ProcessHandle, PVOID   *BaseAddress, PSIZE_T RegionSize, ULONG   FreeType);
 EXTERN_C NTSTATUS ZwOpenProcess10(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
 EXTERN_C NTSTATUS ZwCreateSection10(_Out_ PHANDLE SectionHandle, _In_ ACCESS_MASK DesiredAccess, _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes, _In_opt_ PLARGE_INTEGER MaximumSize, 	_In_ ULONG SectionPageProtection, _In_ ULONG AllocationAttributes, _In_opt_ HANDLE FileHandle);
+EXTERN_C NTSTATUS NtCreateProcess10(OUT PHANDLE ProcessHandle, IN ACCESS_MASK DesiredAccess, IN POBJECT_ATTRIBUTES ObjectAttributes OPTIONAL, IN HANDLE ParentProcess,
+	IN BOOLEAN InheritObjectTable, IN HANDLE SectionHandle OPTIONAL, IN HANDLE DebugPort OPTIONAL, IN HANDLE ExceptionPort OPTIONAL);
+
 
 NTSTATUS(*NtCreateFile)(
 	PHANDLE FileHandle,
@@ -160,12 +163,22 @@ NTSTATUS(*ZwOpenProcess)(
 	PCLIENT_ID ClientId
 	);
 
-NTSTATUS(NTAPI *ZwCreateSection)(
+NTSTATUS(*ZwCreateSection)(
 	_Out_ PHANDLE SectionHandle, _In_ ACCESS_MASK DesiredAccess,
 	_In_opt_ POBJECT_ATTRIBUTES ObjectAttributes,
 	_In_opt_ PLARGE_INTEGER MaximumSize, _In_ ULONG SectionPageProtection,
 	_In_ ULONG AllocationAttributes, _In_opt_ HANDLE FileHandle
 	);
+
+NTSTATUS (*NtCreateProcess)(
+	OUT PHANDLE           ProcessHandle,
+	IN ACCESS_MASK        DesiredAccess,
+	IN POBJECT_ATTRIBUTES ObjectAttributes OPTIONAL,
+	IN HANDLE             ParentProcess,
+	IN BOOLEAN            InheritObjectTable,
+	IN HANDLE             SectionHandle OPTIONAL,
+	IN HANDLE             DebugPort OPTIONAL,
+	IN HANDLE             ExceptionPort OPTIONAL);
 
 NTSTATUS(*ZwClose)(
 	IN HANDLE KeyHandle

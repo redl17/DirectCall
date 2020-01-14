@@ -35,12 +35,12 @@ ZwOpenProcess10 proc
 	ret
 ZwOpenProcess10 endp
 
-NtCreateSection10 proc
+ZwCreateSection10 proc
 	mov r10, rcx                        
 	mov eax, 4Ah
 	syscall        
 	ret
-NTCreateSection10 endp
+ZwCreateSection10 endp
 
 NtCreateProcess10 proc
 	mov r10, rcx                        
